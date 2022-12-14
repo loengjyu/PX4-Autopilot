@@ -55,7 +55,7 @@
  * @category Developer
  * @group Circuit Breaker
  */
-PARAM_DEFINE_INT32(CBRK_SUPPLY_CHK, 0);
+PARAM_DEFINE_INT32(CBRK_SUPPLY_CHK, 894281);
 
 /**
  * Circuit breaker for rate controller output
