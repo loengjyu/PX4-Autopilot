@@ -56,14 +56,13 @@ ActuatorEffectivenessControlSurfaces::ActuatorEffectivenessControlSurfaces(Modul
 		_param_handles[i].scale_flap = param_find(buffer);
 		snprintf(buffer, sizeof(buffer), "CA_SV_CS%u_SPOIL", i);
 		_param_handles[i].scale_spoiler = param_find(buffer);
-		snprintf(buffer, sizeof(buffer), "CA_SV_CS%u_LAU_LK", i);
-		_param_handles[i].launch_lock = param_find(buffer);
 	}
 
 	_flaps_setpoint_with_slewrate.setSlewRate(kFlapSlewRate);
 	_spoilers_setpoint_with_slewrate.setSlewRate(kSpoilersSlewRate);
 
 	_count_handle = param_find("CA_SV_CS_COUNT");
+	_param_handle_ca_sv_lau_lk = param_find("CA_SV_LAU_LK");
 	updateParams();
 }
 
@@ -75,6 +74,8 @@ void ActuatorEffectivenessControlSurfaces::updateParams()
 		PX4_ERR("param_get failed");
 		return;
 	}
+
+	param_get(_param_handle_ca_sv_lau_lk, &_param_ca_sv_lau_lk);
 
 	for (int i = 0; i < _count; i++) {
 		param_get(_param_handles[i].type, (int32_t *)&_params[i].type);
@@ -88,7 +89,6 @@ void ActuatorEffectivenessControlSurfaces::updateParams()
 		param_get(_param_handles[i].trim, &_params[i].trim);
 		param_get(_param_handles[i].scale_flap, &_params[i].scale_flap);
 		param_get(_param_handles[i].scale_spoiler, &_params[i].scale_spoiler);
-		param_get(_param_handles[i].launch_lock, &_params[i].launch_lock);
 
 		// TODO: enforce limits (note that tailsitter uses different limits)?
 		switch (_params[i].type) {
@@ -190,7 +190,8 @@ void ActuatorEffectivenessControlSurfaces::applyLaunchLock(int first_actuator_id
 		ActuatorVector &actuator_sp)
 {
 	for (int i = 0; i < _count; ++i) {
-		if (_params[i].launch_lock) {
+
+		if (_param_ca_sv_lau_lk & (1u << i)) {
 			actuator_sp(i + first_actuator_idx) = NAN;
 		}
 	}
