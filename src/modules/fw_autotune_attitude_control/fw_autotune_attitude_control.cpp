@@ -570,6 +570,8 @@ void FwAutotuneAttitudeControl::updateStateMachine(hrt_abstime now)
 			// Abort
 			mavlink_log_critical(&mavlink_log_pub, "Autotune aborted before finishing");
 			_state = state::fail;
+			_start_flight_mode = _nav_state;
+			_state_start_time = now;
 
 		} else if (timeout) {
 			// Skip to next axis
@@ -595,9 +597,10 @@ void FwAutotuneAttitudeControl::updateStateMachine(hrt_abstime now)
 				_state = state::fail;         // safety fallback
 				break;
 			}
-		}
 
-		_state_start_time = now;
+			_start_flight_mode = _nav_state;
+			_state_start_time = now;
+		}
 	}
 }
 
