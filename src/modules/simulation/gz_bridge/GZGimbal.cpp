@@ -43,6 +43,9 @@ bool GZGimbal::init(const std::string &world_name, const std::string &model_name
 	_mnt_min_pitch_handle = param_find("MNT_MIN_PITCH");
 	_mnt_max_yaw_handle = param_find("MNT_MAX_YAW");
 	_mnt_min_yaw_handle = param_find("MNT_MIN_YAW");
+	_mnt_off_roll = param_find("MNT_OFF_ROLL");
+	_mnt_off_pitch = param_find("MNT_OFF_PITCH");
+	_mnt_off_yaw = param_find("MNT_OFF_YAW");
 	_mnt_mode_out_handle = param_find("MNT_MODE_OUT");
 
 	if (_mnt_max_roll_handle == PARAM_INVALID ||
@@ -160,11 +163,14 @@ bool GZGimbal::pollSetpoint()
 		gimbal_controls_s msg;
 
 		if (_gimbal_controls_sub.copy(&msg)) {
-			// map control inputs from [-1;1] to [min_angle; max_angle] using the range parameters
-			_roll_stp = math::constrain(math::radians(msg.control[msg.INDEX_ROLL] * (_mnt_max_roll - _mnt_min_roll) / 2), _mnt_min_roll, _mnt_max_roll);
-			_pitch_stp = math::constrain(math::radians(msg.control[msg.INDEX_PITCH] * (_mnt_max_pitch - _mnt_min_pitch) / 2), _mnt_min_pitch,
+			// map control inputs from [-1;1] to [min_angle; max_angle]
+			_roll_stp = math::constrain(math::radians(msg.control[msg.INDEX_ROLL] * ((_mnt_max_roll - _mnt_min_roll) / 2 + _mnt_off_roll)),
+						    _mnt_min_roll, _mnt_max_roll);
+			_pitch_stp = math::constrain(math::radians(msg.control[msg.INDEX_PITCH] * ((_mnt_max_pitch - _mnt_min_pitch) / 2 + _mnt_off_pitch)),
+						     _mnt_min_pitch,
 						     _mnt_max_pitch);
-			_yaw_stp = math::constrain(math::radians(msg.control[msg.INDEX_YAW] * (_mnt_max_yaw - _mnt_min_yaw) / 2), _mnt_min_yaw, _mnt_max_yaw);
+			_yaw_stp = math::constrain(math::radians(msg.control[msg.INDEX_YAW] * ((_mnt_max_yaw - _mnt_min_yaw) / 2 + _mnt_off_yaw)), _mnt_min_yaw,
+						   _mnt_max_yaw);
 
 			return true;
 		}

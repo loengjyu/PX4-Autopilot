@@ -79,6 +79,9 @@ private:
 	float _mnt_min_roll = 0.0f;
 	float _mnt_max_yaw = 0.0f;
 	float _mnt_min_yaw = 0.0f;
+	float _mnt_off_roll = 0.0f;
+	float _mnt_off_pitch = 0.0f;
+	float _mnt_off_yaw = 0.0f;
 	int32_t _mnt_mode_out = 0;
 
 	matrix::Quatf _q_gimbal = matrix::Quatf(1.0f, 0.0f, 0.0f, 0.0f);
