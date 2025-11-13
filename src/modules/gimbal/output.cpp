@@ -264,7 +264,7 @@ void OutputBase::_calculate_angle_output(const hrt_abstime &t)
 		}
 	}
 
-	// constrain angle outputs to [min, max] to allow for non symmetrical angular ranges
+	// constrain angle outputs to [min, max] to allow for asymmetrical angular ranges
 	_angle_outputs[0] = math::constrain(_angle_outputs[0] + math::radians(_parameters.mnt_off_roll),
 					    math::radians(_parameters.mnt_min_roll),
 					    math::radians(_parameters.mnt_max_roll));
