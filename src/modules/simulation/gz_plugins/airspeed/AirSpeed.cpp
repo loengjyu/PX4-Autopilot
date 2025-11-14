@@ -34,25 +34,95 @@
 #include "AirSpeed.hpp"
 
 #include <gz/plugin/Register.hh>
+#include <gz/msgs/air_speed.pb.h>
 
 using namespace px4;
+
+// Sign function taken from https://stackoverflow.com/a/4609795/8548472
+template <typename T> int sign(T val)
+{
+	return (T(0) < val) - (val < T(0));
+}
 
 // Register the plugin
 GZ_ADD_PLUGIN(
 	AirSpeed,
 	gz::sim::System,
 	AirSpeed::ISystemPreUpdate,
-	AirSpeed::ISystemPostUpdate
+	AirSpeed::ISystemConfigure
 )
 
-void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
-			       gz::sim::EntityComponentManager &_ecm)
+void AirSpeed::Configure(const gz::sim::Entity &entity,
+			 const std::shared_ptr<const sdf::Element> &sdf,
+			 gz::sim::EntityComponentManager &ecm,
+			 gz::sim::EventManager &eventMgr)
 {
-	// Implement pre-update logic here
+	_entity = entity;
+	_model = gz::sim::Model(entity);
+
+	const std::string link_name = sdf->Get<std::string>("link_name");
+	_link_entity = _model.LinkByName(ecm, link_name);
+
+	if (!_link_entity) {
+		throw std::runtime_error("Airspeed::Configure: Link \"" + link_name + "\" was not found. "
+					 "Please ensure that your model contains the corresponding link.");
+	}
+
+	_link = gz::sim::Link(_link_entity);
+
+	// Needed to report linear & angular velocity
+	_link.EnableVelocityChecks(ecm, true);
+
+	_world_entity = gz::sim::worldEntity(ecm);
+	_world = gz::sim::World(_world_entity);
+
+	std::string _world_name;
+	std::string _model_name;
+	std::string airspeed_topic = "/world/" + _world_name + "/model/" + _model_name +
+				     "/link/airspeed_link/sensor/air_speed/air_speed";
+	_pub = _node.Advertise<gz::msgs::AirSpeed>(airspeed_topic);
+
+	///TODO: Read sdf for altitude home position
 }
 
-void AirSpeed::PostUpdate(const gz::sim::UpdateInfo &_info,
-				const gz::sim::EntityComponentManager &_ecm)
+void AirSpeed::PreUpdate(const gz::sim::UpdateInfo &_info,
+			 gz::sim::EntityComponentManager &_ecm)
 {
-	// Implement post-update logic here
+	const auto optional_pose = _link.WorldPose(_ecm);
+
+	if (optional_pose.has_value()) {
+		_vehicle_position = optional_pose.value().Pos();
+		_vehicle_attitude = optional_pose.value().Rot();
+
+	} else {
+		gzerr << "Unable to get pose" << std::endl;
+	}
+
+	const auto optional_vel = _link.WorldLinearVelocity(_ecm);
+
+	if (optional_vel.has_value()) {
+		_vehicle_velocity = optional_vel.value();
+
+	} else {
+		gzerr << "Unable to get linear velocity" << std::endl;
+	}
+
+	// Compute the air density at the local altitude / temperature
+	const float alt_rel = _vehicle_position.Z(); // Z-component from ENU
+	const float alt_amsl = (float)_alt_home + alt_rel;
+	const float temperature_local = TEMPERATURE_MSL - LAPSE_RATE * alt_amsl;
+	const float density_ratio = powf(TEMPERATURE_MSL / temperature_local, 4.256f);
+	const float air_density = AIR_DENSITY_MSL / density_ratio;
+
+	// Calculate differential pressure + noise in hPa
+	// const float diff_pressure_noise = standard_normal_distribution_(random_generator_) * diff_pressure_stddev_;
+	const double diff_pressure_noise{0.0};
+	gz::math::Vector3d air_vel_in_body_;
+	double diff_pressure = sign(air_vel_in_body_.X()) * 0.005 * (double)air_density  * air_vel_in_body_.X() * air_vel_in_body_.X() +
+			       diff_pressure_noise;
+	// Calculate differential pressure in hPa
+	gz::msgs::AirSpeed airspeed_msg;
+	// airspeed_msg.set_time_usec(last_time_.Double() * 1e6);
+	// airspeed_msg.set_diff_pressure(diff_pressure);
+	_pub.Publish(airspeed_msg);
 }

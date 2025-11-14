@@ -33,25 +33,55 @@
 
 #pragma once
 
+#include <gz/sim/Util.hh>
+#include <gz/sim/Link.hh>
+#include <gz/sim/Model.hh>
+#include <gz/sim/World.hh>
 #include <gz/sim/System.hh>
+#include "gz/sim/components/LinearVelocity.hh"
+
 #include <gz/transport/Node.hh>
 
 namespace px4
 {
+
+static constexpr float DEFAULT_HOME_ALT_AMSL = 488.0; // altitude AMSL at Irchel Park, Zurich, Switzerland [m]
+
+// international standard atmosphere (troposphere model - valid up to 11km) see [1]
+static constexpr float TEMPERATURE_MSL = 288.15; // temperature at MSL [K] (15 [C])
+static constexpr float PRESSURE_MSL = 101325.0; // pressure at MSL [Pa]
+static constexpr float LAPSE_RATE = 0.0065; // reduction in temperature with altitude for troposphere [K/m]
+static constexpr float AIR_DENSITY_MSL = 1.225; // air density at MSL [kg/m^3]
+
 class AirSpeed:
 	public gz::sim::System,
 	public gz::sim::ISystemPreUpdate,
-	public gz::sim::ISystemPostUpdate
+	public gz::sim::ISystemConfigure
 {
 public:
 	void PreUpdate(const gz::sim::UpdateInfo &_info,
 		       gz::sim::EntityComponentManager &_ecm) final;
 
-	void PostUpdate(const gz::sim::UpdateInfo &_info,
-			const gz::sim::EntityComponentManager &_ecm) final;
+	void Configure(const gz::sim::Entity &entity,
+		       const std::shared_ptr<const sdf::Element> &sdf,
+		       gz::sim::EntityComponentManager &ecm,
+		       gz::sim::EventManager &eventMgr) override;
 
 private:
-	// Add your private member variables and methods here
+	gz::sim::Entity _entity;
+	gz::sim::Model _model{gz::sim::kNullEntity};
+	gz::sim::Entity _link_entity;
+	gz::sim::Link _link;
+	gz::sim::Entity _world_entity;
+	gz::sim::World _world;
+
 	gz::transport::Node _node;
+	gz::transport::Node::Publisher _pub;
+
+	gz::math::Quaterniond _vehicle_attitude;
+	gz::math::Vector3d _vehicle_velocity{0., 0., 0.};
+	gz::math::Vector3d _vehicle_position{0., 0., 0.};
+
+	float _alt_home{DEFAULT_HOME_ALT_AMSL};
 };
 } // end namespace px4
